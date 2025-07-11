@@ -263,7 +263,7 @@ preinstall() {
     #apt upgrade -y
 
     colorEcho $BLUE " 安装必要软件"
-    apt install -y telnet curl wget vim net-tools libsodium18 openssl unzip qrencode
+    apt install -y telnet curl wget vim net-tools libsodium23 openssl unzip qrencode
     res=`which wget`
     [ "$?" != "0" ] && apt install -y wget
     res=`which netstat`
