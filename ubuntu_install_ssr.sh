@@ -285,11 +285,28 @@ installSSR() {
 
         tar -zxf ${FILENAME}.tar.gz
         mv shadowsocksr-3.2.2/shadowsocks /usr/local
+        
         if [ ! -f /usr/local/shadowsocks/server.py ]; then
             colorEcho $RED " $OS 安装SSR失败，请到 https://hijk.art 网站反馈"
             cd ${BASE} && rm -rf shadowsocksr-3.2.2 ${FILENAME}.tar.gz
             exit 1
         fi
+        #!/bin/bash
+
+        # 文件路径，对这个文件的代码进行修改，这个错误表明 ShadowsocksR 服务启动失败，原因是 Python 的 collections.MutableMapping 属性不存在。
+        # 这个问题通常发生在较新版本的 Python 中，因为 collections.MutableMapping 在 Python 3.10+ 中已被移动到 collections.abc 模块
+        FILE="/usr/local/shadowsocks/lru_cache.py"
+        
+        # 备份原文件（重要！）
+        # cp "$FILE" "$FILE.bak"
+        # 1. 在文件开头添加导入语句（如果尚未存在）
+        if ! grep -q "from collections.abc import MutableMapping" "$FILE"; then
+            sed -i '1i from collections.abc import MutableMapping' "$FILE"
+        fi
+        # 2. 修改类继承语句
+        sed -i 's/class LRUCache(collections.MutableMapping):/class LRUCache(MutableMapping):/' "$FILE"
+        echo "修改完成文件修改"
+        
         cd ${BASE} && rm -rf shadowsocksr-3.2.2 ${FILENAME}.tar.gz
     fi
 
