@@ -294,30 +294,8 @@ installSSR() {
         # 修复Python 3.10+兼容性问题
         FILE="/usr/local/shadowsocks/lru_cache.py"
         if [ -f "$FILE" ]; then
-            # 备份原文件
-            cp "$FILE" "$FILE.bak"
-            
-            # 1. 在文件开头添加导入语句（如果尚未存在）
-            if ! grep -q "from collections.abc import MutableMapping" "$FILE"; then
-                # 检查是否有shebang或编码声明
-                firstLine=$(head -n 1 "$FILE")
-                if [[ "$firstLine" =~ ^#! ]] || [[ "$firstLine" =~ ^#.*coding ]]; then
-                    # 如果有shebang或编码声明，在第二行插入
-                    sed -i '2i from collections.abc import MutableMapping' "$FILE"
-                else
-                    # 否则在第一行插入
-                    sed -i '1i from collections.abc import MutableMapping' "$FILE"
-                fi
-            fi
-            
             # 2. 修改类继承语句
-            sed -i 's/class LRUCache(collections.MutableMapping):/class LRUCache(MutableMapping):/' "$FILE"
-            
-            # 3. 确保collections也被导入（如果文件中使用了其他collections功能）
-            if grep -q "collections" "$FILE" && ! grep -q "import collections" "$FILE"; then
-                sed -i '/from collections.abc import MutableMapping/a import collections' "$FILE"
-            fi
-            
+            sed -i 's/class LRUCache(collections.MutableMapping):/class LRUCache(collections.abc.MutableMapping):/' "$FILE"
             colorEcho $GREEN " 已成功修复Python 3.10+兼容性问题"
         else
             colorEcho $YELLOW " 警告: 未找到lru_cache.py文件，可能无法兼容Python 3.10+"
