@@ -291,21 +291,37 @@ installSSR() {
             cd ${BASE} && rm -rf shadowsocksr-3.2.2 ${FILENAME}.tar.gz
             exit 1
         fi
-        #!/bin/bash
-
-        # 文件路径，对这个文件的代码进行修改，这个错误表明 ShadowsocksR 服务启动失败，原因是 Python 的 collections.MutableMapping 属性不存在。
-        # 这个问题通常发生在较新版本的 Python 中，因为 collections.MutableMapping 在 Python 3.10+ 中已被移动到 collections.abc 模块
+        # 修复Python 3.10+兼容性问题
         FILE="/usr/local/shadowsocks/lru_cache.py"
-        
-        # 备份原文件（重要！）
-        # cp "$FILE" "$FILE.bak"
-        # 1. 在文件开头添加导入语句（如果尚未存在）
-        if ! grep -q "from collections.abc import MutableMapping" "$FILE"; then
-            sed -i '1i from collections.abc import MutableMapping' "$FILE"
+        if [ -f "$FILE" ]; then
+            # 备份原文件
+            cp "$FILE" "$FILE.bak"
+            
+            # 1. 在文件开头添加导入语句（如果尚未存在）
+            if ! grep -q "from collections.abc import MutableMapping" "$FILE"; then
+                # 检查是否有shebang或编码声明
+                firstLine=$(head -n 1 "$FILE")
+                if [[ "$firstLine" =~ ^#! ]] || [[ "$firstLine" =~ ^#.*coding ]]; then
+                    # 如果有shebang或编码声明，在第二行插入
+                    sed -i '2i from collections.abc import MutableMapping' "$FILE"
+                else
+                    # 否则在第一行插入
+                    sed -i '1i from collections.abc import MutableMapping' "$FILE"
+                fi
+            fi
+            
+            # 2. 修改类继承语句
+            sed -i 's/class LRUCache(collections.MutableMapping):/class LRUCache(MutableMapping):/' "$FILE"
+            
+            # 3. 确保collections也被导入（如果文件中使用了其他collections功能）
+            if grep -q "collections" "$FILE" && ! grep -q "import collections" "$FILE"; then
+                sed -i '/from collections.abc import MutableMapping/a import collections' "$FILE"
+            fi
+            
+            colorEcho $GREEN " 已成功修复Python 3.10+兼容性问题"
+        else
+            colorEcho $YELLOW " 警告: 未找到lru_cache.py文件，可能无法兼容Python 3.10+"
         fi
-        # 2. 修改类继承语句
-        sed -i 's/class LRUCache(collections.MutableMapping):/class LRUCache(MutableMapping):/' "$FILE"
-        echo "修改完成文件修改"
         
         cd ${BASE} && rm -rf shadowsocksr-3.2.2 ${FILENAME}.tar.gz
     fi
