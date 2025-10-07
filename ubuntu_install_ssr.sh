@@ -13,11 +13,11 @@ V6_PROXY=""
 IP=`curl -sL -4 ip.sb`
 if [[ "$?" != "0" ]]; then
     IP=`curl -sL -6 ip.sb`
-    V6_PROXY=""
+    V6_PROXY="https://gh.hijk.art/"
 fi
 
 FILENAME="ShadowsocksR-v3.2.2"
-URL="https://github.com/shadowsocksrr/shadowsocksr/archive/3.2.2.tar.gz"
+URL="${V6_PROXY}https://github.com/shadowsocksrr/shadowsocksr/archive/3.2.2.tar.gz"
 BASE=`pwd`
 OS=`hostnamectl | grep -i system | cut -d: -f2`
 
@@ -263,7 +263,7 @@ preinstall() {
     #apt upgrade -y
 
     colorEcho $BLUE " 安装必要软件"
-    apt install -y telnet curl wget vim net-tools libsodium23 openssl unzip qrencode git
+    apt install -y telnet curl wget vim net-tools libsodium23 openssl unzip qrencode
     res=`which wget`
     [ "$?" != "0" ] && apt install -y wget
     res=`which netstat`
@@ -278,7 +278,6 @@ preinstall() {
 installSSR() {
     if [ ! -d /usr/local/shadowsocks ]; then
         colorEcho $BLUE  " 下载安装文件"
-        
         if ! wget --no-check-certificate -O ${FILENAME}.tar.gz ${URL}; then
             echo -e "[${RED}Error${PLAIN}] 下载文件失败!"
             exit 1
