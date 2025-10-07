@@ -13,7 +13,7 @@ V6_PROXY=""
 IP=`curl -sL -4 ip.sb`
 if [[ "$?" != "0" ]]; then
     IP=`curl -sL -6 ip.sb`
-    V6_PROXY=""
+    V6_PROXY="https://gh.hijk.art/"
 fi
 
 FILENAME="ShadowsocksR-v3.2.2"
@@ -291,9 +291,6 @@ installSSR() {
             cd ${BASE} && rm -rf shadowsocksr-3.2.2 ${FILENAME}.tar.gz
             exit 1
         fi
-        
-        #apt-get install git
-        #git clone https://github.com/shadowsocksr/shadowsocksr.git
         # 修复Python 3.10+兼容性问题
         FILE="/usr/local/shadowsocks/lru_cache.py"
         if [ -f "$FILE" ]; then
