@@ -279,22 +279,22 @@ installSSR() {
     if [ ! -d /usr/local/shadowsocks ]; then
         colorEcho $BLUE  " 下载安装文件"
         
-       # if ! wget --no-check-certificate -O ${FILENAME}.tar.gz ${URL}; then
-       #     echo -e "[${RED}Error${PLAIN}] 下载文件失败!"
-       #     exit 1
-       # fi
+        if ! wget --no-check-certificate -O ${FILENAME}.tar.gz ${URL}; then
+            echo -e "[${RED}Error${PLAIN}] 下载文件失败!"
+            exit 1
+        fi
 
-       #tar -zxf ${FILENAME}.tar.gz
-       #mv shadowsocksr-3.2.2/shadowsocks /usr/local
+        tar -zxf ${FILENAME}.tar.gz
+        mv shadowsocksr-3.2.2/shadowsocks /usr/local
         
-       #if [ ! -f /usr/local/shadowsocks/server.py ]; then
-       #     colorEcho $RED " $OS 安装SSR失败，请到 https://hijk.art 网站反馈"
-       #     cd ${BASE} && rm -rf shadowsocksr-3.2.2 ${FILENAME}.tar.gz
-       #     exit 1
-       # fi
+        if [ ! -f /usr/local/shadowsocks/server.py ]; then
+            colorEcho $RED " $OS 安装SSR失败，请到 https://hijk.art 网站反馈"
+            cd ${BASE} && rm -rf shadowsocksr-3.2.2 ${FILENAME}.tar.gz
+            exit 1
+        fi
         
         #apt-get install git
-        git clone https://github.com/shadowsocksr/shadowsocksr.git
+        #git clone https://github.com/shadowsocksr/shadowsocksr.git
         # 修复Python 3.10+兼容性问题
         FILE="/usr/local/shadowsocks/lru_cache.py"
         if [ -f "$FILE" ]; then
