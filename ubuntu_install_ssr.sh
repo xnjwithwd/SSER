@@ -13,7 +13,7 @@ V6_PROXY=""
 IP=`curl -sL -4 ip.sb`
 if [[ "$?" != "0" ]]; then
     IP=`curl -sL -6 ip.sb`
-    V6_PROXY="https://gh.hijk.art/"
+    V6_PROXY=""
 fi
 
 FILENAME="ShadowsocksR-v3.2.2"
@@ -55,10 +55,6 @@ slogon() {
     clear
     echo "#############################################################"
     echo -e "#          ${RED}Ubuntu LTS ShadowsocksR/SSR 一键安装脚本${PLAIN}          #"
-    echo -e "# ${GREEN}作者${PLAIN}: 网络跳越(hijk)                                      #"
-    echo -e "# ${GREEN}网址${PLAIN}: https://hijk.art                                    #"
-    echo -e "# ${GREEN}论坛${PLAIN}: https://hijk.club                                   #"
-    echo -e "# ${GREEN}TG群${PLAIN}: https://t.me/hijkclub                               #"
     echo -e "# ${GREEN}Youtube频道${PLAIN}: https://youtube.com/channel/UCYTB--VsObzepVJtc9yvUxQ #"
     echo "#############################################################"
     echo ""
@@ -327,7 +323,7 @@ EOF
 cat > /lib/systemd/system/shadowsocksR.service <<-EOF
 [Unit]
 Description=shadowsocksR
-Documentation=https://hijk.art/
+Documentation=
 After=network-online.target
 Wants=network-online.target
 
@@ -426,10 +422,10 @@ info() {
 bbrReboot() {
     if [ "${INSTALL_BBR}" == "false" ]; then
         echo
-        colorEcho $BLUE  " 为使BBR模块生效，系统将在30秒后重启"
+        colorEcho $BLUE  " 为使BBR模块生效，系统将重启"
         echo
-        echo -e " 您可以按 ctrl + c 取消重启，稍后输入 ${RED}reboot${PLAIN} 重启系统"
-        sleep 30
+        #echo -e " 您可以按 ctrl + c 取消重启，稍后输入 ${RED}reboot${PLAIN} 重启系统"
+        #sleep 30
         reboot
     fi
 }
