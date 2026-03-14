@@ -1,6 +1,6 @@
 #!/bin/bash
-# shadowsocksR/SSR Ubuntu 一键安装脚本（修复版）
-# 修复了Python 3.10+兼容性、服务启动失败、密码安全等问题
+# shadowsocksR/SSR Ubuntu 一键安装脚本（精确修复版）
+# 针对Python 3.13的collections问题做了精准修复
 # 仓库：https://github.com/xnjwithwd/SSER
 
 RED="\033[31m"
@@ -29,7 +29,6 @@ colorEcho() {
     echo -e "${1}${@:2}${PLAIN}"
 }
 
-# 检查系统环境
 checkSystem() {
     if [[ $EUID -ne 0 ]]; then
         colorEcho $RED "请以 root 身份执行该脚本"
@@ -66,7 +65,6 @@ slogon() {
     echo ""
 }
 
-# 安全地获取密码（仅允许ASCII可打印字符，不含引号和空格）
 get_password() {
     local pw
     while true; do
@@ -177,7 +175,7 @@ getData() {
 preinstall() {
     colorEcho $BLUE " 更新软件包列表并安装必要组件"
     apt update
-    apt install -y curl wget vim net-tools libsodium23 openssl unzip qrencode python3 python3-crypto
+    apt install -y curl wget vim net-tools libsodium23 openssl unzip qrencode python3
 
     if [[ ! -e /usr/bin/python ]]; then
         ln -s /usr/bin/python3 /usr/bin/python
@@ -238,17 +236,19 @@ installSSR() {
         fi
     fi
 
-    colorEcho $BLUE " 修复 Python 3.10+ 兼容性问题"
-    # 精确修复 lru_cache.py（已知问题）
-    if [[ -f $SSR_HOME/lru_cache.py ]]; then
-        sed -i 's/class LRUCache(collections.MutableMapping):/class LRUCache(collections.abc.MutableMapping):/' $SSR_HOME/lru_cache.py
-    fi
-    # 修复其他可能的 import 错误（仅针对特定文件）
-    grep -rl "from collections import" $SSR_HOME --include="*.py" | while read f; do
-        sed -i 's/from collections import/from collections.abc import/g' "$f"
-    done
+    colorEcho $BLUE " 精确修复 Python 3.13 兼容性问题"
 
-    # 修改 shebang
+    # 修复1：lru_cache.py 中错误地从 collections.abc 导入 OrderedDict
+    if [[ -f $SSR_HOME/lru_cache.py ]]; then
+        sed -i 's/from collections\.abc import OrderedDict/from collections import OrderedDict/' $SSR_HOME/lru_cache.py
+    fi
+
+    # 修复2：ordereddict.py 中使用 collections.MutableMapping -> collections.abc.MutableMapping
+    if [[ -f $SSR_HOME/ordereddict.py ]]; then
+        sed -i 's/collections\.MutableMapping/collections.abc.MutableMapping/g' $SSR_HOME/ordereddict.py
+    fi
+
+    # 修复3：确保 server.py 使用 python3
     sed -i '1s/.*/#!\/usr\/bin\/env python3/' $SSR_HOME/server.py
 
     # 创建运行用户
@@ -308,7 +308,6 @@ EOF
     sleep 3
     if ! systemctl is-active shadowsocksR >/dev/null 2>&1; then
         colorEcho $RED " SSR 启动失败，正在收集错误信息..."
-        # 输出详细的 journal 日志
         journalctl -u shadowsocksR -n 20 --no-pager
         colorEcho $YELLOW "尝试手动运行以获取更多错误信息："
         sudo -u $SSR_USER $SSR_HOME/server.py -c $CONFIG_FILE start
