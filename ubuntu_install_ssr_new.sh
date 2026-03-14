@@ -1,6 +1,6 @@
 #!/bin/bash
-# shadowsocksR/SSR Ubuntu 一键安装脚本（精确修复版）
-# 针对Python 3.13的collections问题做了精准修复
+# shadowsocksR/SSR Ubuntu 一键安装脚本（最终修复版）
+# 针对 Python 3.13 全面修复 collections 导入问题
 # 仓库：https://github.com/xnjwithwd/SSER
 
 RED="\033[31m"
@@ -236,7 +236,7 @@ installSSR() {
         fi
     fi
 
-    colorEcho $BLUE " 精确修复 Python 3.13 兼容性问题"
+    colorEcho $BLUE " 全面修复 Python 3.13 兼容性问题"
 
     # 修复1：lru_cache.py 中错误地从 collections.abc 导入 OrderedDict
     if [[ -f $SSR_HOME/lru_cache.py ]]; then
@@ -248,7 +248,12 @@ installSSR() {
         sed -i 's/collections\.MutableMapping/collections.abc.MutableMapping/g' $SSR_HOME/ordereddict.py
     fi
 
-    # 修复3：确保 server.py 使用 python3
+    # 修复3：eventloop.py 中错误地从 collections.abc 导入 defaultdict
+    if [[ -f $SSR_HOME/eventloop.py ]]; then
+        sed -i 's/from collections\.abc import defaultdict/from collections import defaultdict/' $SSR_HOME/eventloop.py
+    fi
+
+    # 修复4：确保 server.py 使用 python3
     sed -i '1s/.*/#!\/usr\/bin\/env python3/' $SSR_HOME/server.py
 
     # 创建运行用户
