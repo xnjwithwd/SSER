@@ -1,6 +1,6 @@
 #!/bin/bash
-# shadowsocksR/SSR Ubuntu 一键安装脚本（改进版）
-# 功能：安装、卸载、查看配置
+# shadowsocksR/SSR Ubuntu 一键安装脚本（修复版）
+# 修复了Python 3.10+兼容性、服务启动失败、密码安全等问题
 # 仓库：https://github.com/xnjwithwd/SSER
 
 RED="\033[31m"
@@ -29,6 +29,7 @@ colorEcho() {
     echo -e "${1}${@:2}${PLAIN}"
 }
 
+# 检查系统环境
 checkSystem() {
     if [[ $EUID -ne 0 ]]; then
         colorEcho $RED "请以 root 身份执行该脚本"
@@ -65,11 +66,25 @@ slogon() {
     echo ""
 }
 
+# 安全地获取密码（仅允许ASCII可打印字符，不含引号和空格）
+get_password() {
+    local pw
+    while true; do
+        read -p " 请设置 SSR 密码（不输入则随机生成）: " pw
+        if [[ -z "$pw" ]]; then
+            pw=$(openssl rand -base64 16 | tr -dc 'a-zA-Z0-9' | head -c 16)
+            break
+        elif [[ "$pw" =~ [^[:print:]] || "$pw" =~ [\"\'\\\ ] ]]; then
+            colorEcho $RED " 密码不能包含引号、反斜杠或空格，请重新输入"
+        else
+            break
+        fi
+    done
+    echo "$pw"
+}
+
 getData() {
-    read -p " 请设置 SSR 密码（不输入则随机生成）: " PASSWORD
-    if [[ -z "$PASSWORD" ]]; then
-        PASSWORD=$(openssl rand -base64 16 | tr -dc 'a-zA-Z0-9' | head -c 16)
-    fi
+    PASSWORD=$(get_password)
     echo ""
     colorEcho $BLUE " 密码： $PASSWORD"
     echo ""
@@ -162,7 +177,7 @@ getData() {
 preinstall() {
     colorEcho $BLUE " 更新软件包列表并安装必要组件"
     apt update
-    apt install -y curl wget vim net-tools libsodium23 openssl unzip qrencode python3
+    apt install -y curl wget vim net-tools libsodium23 openssl unzip qrencode python3 python3-crypto
 
     if [[ ! -e /usr/bin/python ]]; then
         ln -s /usr/bin/python3 /usr/bin/python
@@ -178,8 +193,8 @@ installBBR() {
         return
     fi
 
-    if [[ $(systemd-detect-virt) == "openvz" ]]; then
-        colorEcho $YELLOW " OpenVZ 虚拟化，无法安装 BBR"
+    if ! command -v systemd-detect-virt &>/dev/null || [[ $(systemd-detect-virt) == "openvz" ]]; then
+        colorEcho $YELLOW " 虚拟化环境可能不支持 BBR，跳过安装"
         INSTALL_BBR=false
         return
     fi
@@ -224,17 +239,24 @@ installSSR() {
     fi
 
     colorEcho $BLUE " 修复 Python 3.10+ 兼容性问题"
-    find $SSR_HOME -name "*.py" -exec sed -i 's/from collections import/from collections.abc import/g' {} \;
+    # 精确修复 lru_cache.py（已知问题）
     if [[ -f $SSR_HOME/lru_cache.py ]]; then
         sed -i 's/class LRUCache(collections.MutableMapping):/class LRUCache(collections.abc.MutableMapping):/' $SSR_HOME/lru_cache.py
     fi
+    # 修复其他可能的 import 错误（仅针对特定文件）
+    grep -rl "from collections import" $SSR_HOME --include="*.py" | while read f; do
+        sed -i 's/from collections import/from collections.abc import/g' "$f"
+    done
 
+    # 修改 shebang
     sed -i '1s/.*/#!\/usr\/bin\/env python3/' $SSR_HOME/server.py
 
+    # 创建运行用户
     if ! id -u $SSR_USER >/dev/null 2>&1; then
         useradd -r -s /sbin/nologin $SSR_USER
     fi
 
+    # 生成配置文件
     cat > $CONFIG_FILE <<EOF
 {
     "server":"0.0.0.0",
@@ -258,6 +280,7 @@ EOF
     chown $SSR_USER:$SSR_USER $CONFIG_FILE
     chmod 600 $CONFIG_FILE
 
+    # 创建 systemd 服务文件（使用 Type=simple）
     cat > $SERVICE_FILE <<EOF
 [Unit]
 Description=ShadowsocksR Server
@@ -265,12 +288,11 @@ After=network-online.target
 Wants=network-online.target
 
 [Service]
-Type=forking
+Type=simple
 User=$SSR_USER
 Group=$SSR_USER
 LimitNOFILE=32768
-ExecStart=$SSR_HOME/server.py -c $CONFIG_FILE -d start
-ExecReload=/bin/kill -s HUP \$MAINPID
+ExecStart=$SSR_HOME/server.py -c $CONFIG_FILE start
 ExecStop=/bin/kill -s TERM \$MAINPID
 Restart=on-failure
 RestartSec=3s
@@ -285,7 +307,11 @@ EOF
 
     sleep 3
     if ! systemctl is-active shadowsocksR >/dev/null 2>&1; then
-        colorEcho $RED " SSR 启动失败，请检查日志：journalctl -u shadowsocksR"
+        colorEcho $RED " SSR 启动失败，正在收集错误信息..."
+        # 输出详细的 journal 日志
+        journalctl -u shadowsocksR -n 20 --no-pager
+        colorEcho $YELLOW "尝试手动运行以获取更多错误信息："
+        sudo -u $SSR_USER $SSR_HOME/server.py -c $CONFIG_FILE start
         exit 1
     fi
     colorEcho $GREEN " SSR 启动成功"
